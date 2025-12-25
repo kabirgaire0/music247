@@ -1,0 +1,216 @@
+# Spotify Clone - Implementation Plan
+
+A full-stack music streaming application with a **Next.js** frontend, **FastAPI** backend, and **PostgreSQL** database, featuring a modern dark-themed UI inspired by Spotify.
+
+---
+
+## User Review Required
+
+> [!IMPORTANT]
+> **Design Decisions Requiring Approval:**
+> 1. **Authentication**: JWT-based auth with access/refresh tokens. No OAuth (Google/Facebook) in initial version.
+> 2. **Audio Playback**: Will use HTML5 Audio API with sample MP3 URLs for demo purposes.
+> 3. **Database**: Local PostgreSQL with Docker Compose for easy setup.
+> 4. **No File Uploads**: Initial version won't include actual music file uploads - will use placeholder URLs.
+
+---
+
+## Architecture Overview
+
+```mermaid
+graph TB
+    subgraph Frontend [Next.js Frontend :3000]
+        UI[React Components]
+        State[Zustand State]
+        API[API Client]
+    end
+    
+    subgraph Backend [FastAPI Backend :8000]
+        Routes[API Routes]
+        Auth[JWT Auth]
+        DB[SQLAlchemy ORM]
+    end
+    
+    subgraph Database [PostgreSQL :5432]
+        Tables[(Tables)]
+    end
+    
+    UI --> State
+    State --> API
+    API --> Routes
+    Routes --> Auth
+    Routes --> DB
+    DB --> Tables
+```
+
+---
+
+## Proposed Changes
+
+### Backend - FastAPI + PostgreSQL
+
+#### [NEW] backend/requirements.txt
+Python dependencies: FastAPI, SQLAlchemy, asyncpg, python-jose, passlib, alembic, etc.
+
+#### [NEW] backend/app/main.py
+FastAPI application entry point with CORS, routers, and startup events.
+
+#### [NEW] backend/app/database.py
+Async SQLAlchemy engine configuration and session management.
+
+#### [NEW] backend/app/models/
+Database models:
+- `User` - id, email, username, hashed_password, avatar_url, created_at
+- `Artist` - id, name, bio, image_url
+- `Album` - id, title, artist_id, cover_url, release_date
+- `Song` - id, title, album_id, artist_id, duration, audio_url, plays
+- `Playlist` - id, name, user_id, cover_url, is_public
+- `PlaylistSong` - playlist_id, song_id, added_at
+- `LikedSong` - user_id, song_id, created_at
+
+#### [NEW] backend/app/routers/
+API endpoints:
+- `auth.py` - POST /register, POST /login, GET /me
+- `songs.py` - GET /songs, GET /songs/{id}, POST /songs/{id}/play
+- `albums.py` - GET /albums, GET /albums/{id}
+- `artists.py` - GET /artists, GET /artists/{id}
+- `playlists.py` - CRUD operations for playlists
+- `library.py` - GET/POST liked songs, recently played
+
+#### [NEW] backend/app/schemas/
+Pydantic schemas for request/response validation.
+
+#### [NEW] backend/app/auth/
+JWT token creation, verification, and password hashing utilities.
+
+#### [NEW] backend/docker-compose.yml
+PostgreSQL container setup for development.
+
+---
+
+### Frontend - Next.js
+
+#### [NEW] frontend/ (Next.js App)
+Initialize with: `npx -y create-next-app@latest ./frontend --typescript --tailwind --eslint --app --src-dir --no-turbopack`
+
+#### [NEW] frontend/src/app/globals.css
+Dark theme design system with Spotify-inspired colors:
+- Background: `#121212`, `#181818`
+- Accent: `#1DB954` (Spotify green)
+- Cards: Glassmorphism effects
+
+#### [NEW] frontend/src/components/layout/
+- `Sidebar.tsx` - Navigation with playlists
+- `Player.tsx` - Bottom audio player bar
+- `Header.tsx` - Search, user menu
+
+#### [NEW] frontend/src/components/ui/
+- `Card.tsx` - Album/playlist cards with hover effects
+- `Button.tsx` - Styled buttons
+- `Input.tsx` - Form inputs
+- `Modal.tsx` - Dialogs
+
+#### [NEW] frontend/src/app/(main)/page.tsx
+Home page with featured playlists, recently played, recommendations.
+
+#### [NEW] frontend/src/app/(main)/search/page.tsx
+Search functionality with results grid.
+
+#### [NEW] frontend/src/app/(main)/playlist/[id]/page.tsx
+Playlist detail view with song list.
+
+#### [NEW] frontend/src/app/(main)/album/[id]/page.tsx
+Album detail view.
+
+#### [NEW] frontend/src/app/(auth)/login/page.tsx
+Login form with validation.
+
+#### [NEW] frontend/src/app/(auth)/register/page.tsx
+Registration form.
+
+#### [NEW] frontend/src/store/
+Zustand stores for:
+- `playerStore.ts` - Current track, queue, playback state
+- `authStore.ts` - User session, tokens
+- `libraryStore.ts` - Liked songs, playlists
+
+#### [NEW] frontend/src/lib/api.ts
+Axios/fetch wrapper for backend API calls.
+
+---
+
+## Project Structure
+
+```
+music247/
+├── backend/
+│   ├── app/
+│   │   ├── main.py
+│   │   ├── database.py
+│   │   ├── models/
+│   │   ├── routers/
+│   │   ├── schemas/
+│   │   └── auth/
+│   ├── alembic/
+│   ├── requirements.txt
+│   └── docker-compose.yml
+│
+└── frontend/
+    ├── src/
+    │   ├── app/
+    │   ├── components/
+    │   ├── store/
+    │   └── lib/
+    ├── public/
+    └── package.json
+```
+
+---
+
+## Verification Plan
+
+### Automated Tests
+1. **Backend API Tests**:
+   ```bash
+   cd backend
+   pytest tests/ -v
+   ```
+
+2. **Frontend Build Verification**:
+   ```bash
+   cd frontend
+   npm run build
+   ```
+
+### Manual Verification
+1. **Database Setup**:
+   - Run `docker-compose up -d` in backend folder
+   - Verify PostgreSQL is running on port 5432
+
+2. **Backend Startup**:
+   - Run `uvicorn app.main:app --reload` in backend folder
+   - Visit `http://localhost:8000/docs` to see Swagger UI
+
+3. **Frontend Startup**:
+   - Run `npm run dev` in frontend folder
+   - Visit `http://localhost:3000`
+   - Verify dark theme renders correctly
+
+4. **User Flow Testing** (Browser):
+   - Register a new user
+   - Login and verify JWT token storage
+   - Browse home page, search for music
+   - Create a playlist and add songs
+   - Play audio and test player controls
+
+---
+
+## Tech Stack Summary
+
+| Layer | Technology |
+|-------|------------|
+| Frontend | Next.js 14 (App Router), TypeScript, Tailwind CSS, Zustand |
+| Backend | FastAPI, SQLAlchemy (async), Pydantic v2 |
+| Database | PostgreSQL 16 |
+| Auth | JWT (python-jose), bcrypt |
+| Dev Tools | Docker Compose, Alembic |
